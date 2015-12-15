@@ -1,8 +1,6 @@
 (ns sourcemap.core
   (:require [goog.dom :as gdom]
-            [om.core :as om]
-            [om.dom :as dom]
-            [dommy.core :as d]
+            [dommy.core :as d :include-macros true]
             [clojure.string :as cstr]
             [goog.labs.net.xhr :as xhr]))
 
@@ -30,17 +28,8 @@
       (d/add-class! element "code"))))
 
 (.then (xhr/get "/source.js")
-       #(.appendChild js/document.body (build-text-element %)))
+       #(d/append! (d/sel1 "#source-code") (build-text-element %)))
 
-(def app-state (atom {:counter 0}))
+(.then (xhr/get "/source.min.js")
+       #(d/append! (d/sel1 "#minified-code") (build-text-element %)))
 
-(defn Counter [data owner]
-  (reify
-    om/IRender
-    (render [this]
-      (dom/div nil (:counter data)
-               (dom/button #js {:onClick #(om/transact! data :counter inc)}
-                           "+1")))))
-
-(om/root Counter app-state
-         {:target (.querySelector js/document "#app")})

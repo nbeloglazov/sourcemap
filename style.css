@@ -1,3 +1,21 @@
 .row, .col {
     margin: 0px;
 }
+
+.code {
+    cursor: pointer;
+}
+
+.col:hover {
+    background-color: #FFFF00;
+}
+
+#code-panels {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-start;
+}
+
+#code-panels .panel {
+    flex-basis: 40%;
+}
