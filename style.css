@@ -7,10 +7,6 @@
     font-size: 15px;
 }
 
-.col:hover {
-    background-color: #FFFF00;
-}
-
 #code-panels {
     display: flex;
     justify-content: space-around;
@@ -22,5 +18,9 @@
 }
 
 .highlite {
-    background-color: #FFFF00;
+    background-color: #FFFFAA;
+}
+
+.selected {
+    background-color: #FF0000;
 }

@@ -102,23 +102,43 @@
                (assoc new-base 0 0)
                tail)))))
 
-(defn highlite-entries [entries row-fn col-fn code-el]
-  (doseq [entry entries
-          :let [col (col-fn entry)
-                row (row-fn entry)]
-          :when (and col row)]
-    (println col row (.-id code-el))
-    (-> code-el
-        (d/sel1 (str ".row-" row " .col-" col))
-        (d/add-class! "highlite"))))
+(defn highlite-entry [entry source-el minified-el]
+  (let [highlite (fn [row-fn col-fn code-el]
+                   (-> code-el
+                       (d/sel1 (str ".row-" (row-fn entry)
+                                    " .col-" (col-fn entry)))
+                       (d/add-class! "highlite")
+                       (d/set-attr! :data-entry (:id entry))))]
+    (highlite :row :col minified-el)
+    (highlite :src-row :src-col source-el)))
+
+(defn highlite-entries [entries]
+  (let [source-el (d/sel1 "#source-code")
+        minified-el (d/sel1 "#minified-code")]
+   (doseq [entry entries
+           :when (every? identity
+                         (map #(% entry) [:row :col :src-row :src-col]))]
+     (highlite-entry entry source-el minified-el))))
+
+(defn index-entries [entries]
+  (map-indexed #(assoc %2 :id %1) entries))
+
+(defn mouse-over [entries event]
+  (doseq [s (d/sel ".selected")]
+    (d/remove-class! s "selected"))
+  (let [el (.-target event)]
+    (when-let [id (d/attr el :data-entry)]
+      (doseq [s (d/sel (str "[data-entry=\"" id "\"]"))]
+        (d/add-class! s "selected")))))
 
 (get-file
  "/source.min.js.map"
  (fn [text]
    (let [sm (js->clj (.parse js/JSON text)
                      :keywordize-keys true)
-         entries (parse-entries sm)]
-     (println entries)
-     (highlite-entries entries :row :col (d/sel1 "#minified-code"))
-     (highlite-entries entries :src-row :src-col (d/sel1 "#source-code")))))
+         entries (-> sm parse-entries index-entries)]
 
+     (println entries)
+     (highlite-entries entries)
+     (doseq [el ["#source-code" "#minified-code"]]
+       (d/listen! (d/sel1 el) :mouseover (partial mouse-over entries))))))
