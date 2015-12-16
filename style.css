@@ -4,6 +4,7 @@
 
 .code {
     cursor: pointer;
+    font-size: 15px;
 }
 
 .col:hover {
@@ -18,4 +19,8 @@
 
 #code-panels .panel {
     flex-basis: 40%;
+}
+
+.highlite {
+    background-color: #FFFF00;
 }
