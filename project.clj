@@ -5,7 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/clojurescript "1.7.170"]
-                 [org.omcljs/om "1.0.0-alpha22"]
+                 [reagent "0.5.1"]
                  [prismatic/dommy "1.1.0"]]
 
   :plugins [[lein-cljsbuild "1.1.1"]]

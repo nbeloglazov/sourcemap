@@ -2,39 +2,70 @@
   (:require [goog.dom :as gdom]
             [dommy.core :as d :include-macros true]
             [clojure.string :as cstr]
-            [goog.labs.net.xhr :as xhr]))
+            [goog.labs.net.xhr :as xhr]
+            [reagent.core :as r]))
 
 (enable-console-print!)
+
+(defonce state
+  (r/atom {:source-code ""
+           :minified-code ""}))
+
+(defn key-by [entries fn]
+  (into {} (for [entry entries]
+             [(fn entry) entry])))
 
 (defn get-file [file done]
   (.then (xhr/get file) done))
 
-(defn build-text-element [text]
-  (letfn [(build-line [line]
-            (let [element (d/create-element :p)
-                  char-els (for [i (range (count line))]
-                             (doto (d/create-element :span)
-                                   (d/set-text! (nth line i))
-                                   (d/add-class! "col" (str "col-" i))))]
-              (if (empty? char-els)
-                element
-                (apply d/append! element char-els))))]
-    (let [element (d/create-element :pre)
-          lines (cstr/split-lines text)
-          lines-els (for [i (range (count lines))
-                          :let [line (nth lines i)
-                                line-el (build-line line)]]
-                      (d/add-class! (build-line (nth lines i))
-                                    "row" (str "row-" i)))]
-      (when-not (empty? lines-els)
-        (apply d/append! element lines-els))
-      (d/add-class! element "code"))))
+(defn line-component [row-ind row entries selected]
+  [:p {:class (str "row row-" row-ind)}
+   (map-indexed (fn [col char]
+                  (let [entry (entries [row-ind col])
+                        id (:id entry)]
+                    ^{:key col}
+                    [:span {:class (str "col col-" col
+                                        (if entry " highlite" "")
+                                        (if (= selected id) " selected" ""))
+                            :data-entry id}
+                     char]))
+                row)])
+
+(defn mouse-over [event]
+  (let [el (.-target event)]
+    (when-let [id (d/attr el :data-entry)]
+      (println "setting selected" id)
+      (swap! state assoc :selected-entry id))))
+
+(defn code-component [text entries selected]
+  [:pre.code {:on-mouseOver mouse-over}
+   (map-indexed (fn [row-ind row]
+                  ^{:key row-ind} [line-component row-ind row entries selected])
+                (cstr/split-lines text))])
+
+(defn source-code-component []
+  [code-component
+   (:source-code @state)
+   (key-by (:entries @state) (juxt :src-row :src-col))
+   (:selected-entry @state -1)])
+
+(defn minified-code-component []
+  [code-component
+   (:minified-code @state)
+   (key-by (:entries @state) (juxt :row :col))
+   (:selected-entry @state -1)])
+
+(r/render-component [source-code-component]
+                    (d/sel1 "#source-code"))
+
+(r/render-component [minified-code-component]
+                    (d/sel1 "#minified-code"))
 
 (get-file "/source.js"
-          #(d/append! (d/sel1 "#source-code") (build-text-element %)))
+          #(swap! state assoc :source-code %))
 
 (get-file "/source.min.js"
-          #(d/append! (d/sel1 "#minified-code") (build-text-element %)))
+          #(swap! state assoc :minified-code %))
 
 (defn b64-char-to-num [char]
   (.indexOf "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=" char))
@@ -121,15 +152,7 @@
      (highlite-entry entry source-el minified-el))))
 
 (defn index-entries [entries]
-  (map-indexed #(assoc %2 :id %1) entries))
-
-(defn mouse-over [entries event]
-  (doseq [s (d/sel ".selected")]
-    (d/remove-class! s "selected"))
-  (let [el (.-target event)]
-    (when-let [id (d/attr el :data-entry)]
-      (doseq [s (d/sel (str "[data-entry=\"" id "\"]"))]
-        (d/add-class! s "selected")))))
+  (map-indexed #(assoc %2 :id (str %1)) entries))
 
 (get-file
  "/source.min.js.map"
@@ -137,8 +160,6 @@
    (let [sm (js->clj (.parse js/JSON text)
                      :keywordize-keys true)
          entries (-> sm parse-entries index-entries)]
-
-     (println entries)
-     (highlite-entries entries)
-     (doseq [el ["#source-code" "#minified-code"]]
-       (d/listen! (d/sel1 el) :mouseover (partial mouse-over entries))))))
+     (swap! state assoc
+            :sourcemap sm
+            :entries entries))))
